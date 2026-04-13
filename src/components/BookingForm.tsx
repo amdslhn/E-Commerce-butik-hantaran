@@ -61,7 +61,7 @@ export default function BookingForm({ services, userId }: BookingFormProps) {
         </div>
       )}
 
-      <input type="hidden" name="user_id" value={userId ?? ""} />
+      <input type="hidden" name="user_id" value={userId ?? 1} />
 
       {/* --- TAMBAHAN UI BARU --- */}
       <div className="grid grid-cols-2 gap-4">
@@ -70,7 +70,7 @@ export default function BookingForm({ services, userId }: BookingFormProps) {
             htmlFor="nama_pengantin_pria"
             className="text-sm font-semibold text-gray-700"
           >
-            Nama Pria
+            Nama Pengantin Pria
           </label>
           <input
             type="text"
@@ -87,7 +87,7 @@ export default function BookingForm({ services, userId }: BookingFormProps) {
             htmlFor="nama_pengantin_wanita"
             className="text-sm font-semibold text-gray-700"
           >
-            Nama Wanita
+            Nama Pengantin Wanita
           </label>
           <input
             type="text"

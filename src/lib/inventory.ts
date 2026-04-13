@@ -4,6 +4,10 @@ import { Prisma, BookingStatus } from "@prisma/client";
 import { calculateBookingDates } from "./dates";
 
 export const MAX_BOX_CAPACITY = 70;
+const NON_BLOCKING_STATUSES: BookingStatus[] = [
+  BookingStatus.CANCELLED,
+  BookingStatus.RETURNED,
+];
 
 export async function checkAvailability(
   eventDateIso: string,
@@ -18,9 +22,8 @@ export async function checkAvailability(
       jumlah_box: true,
     },
     where: {
-      // Menggunakan Enum dari Prisma Schema yang baru
       status_booking: {
-        notIn: [BookingStatus.CANCELLED, BookingStatus.RETURNED],
+        notIn: NON_BLOCKING_STATUSES,
       },
       drop_off_date: { lte: returnDate },
       return_date: { gte: dropOffDate },
@@ -34,5 +37,29 @@ export async function checkAvailability(
     isAvailable: sisaBox >= requestedBoxes,
     sisaBox: sisaBox,
     totalBooked: totalBooked,
+  };
+}
+
+export async function getCurrentInventory(
+  db: Prisma.TransactionClient = prisma,
+) {
+  const openBookings = await db.booking.aggregate({
+    _sum: {
+      jumlah_box: true,
+    },
+    where: {
+      status_booking: {
+        notIn: NON_BLOCKING_STATUSES,
+      },
+    },
+  });
+
+  const totalBooked = openBookings._sum.jumlah_box || 0;
+  const sisaBox = Math.max(0, MAX_BOX_CAPACITY - totalBooked);
+
+  return {
+    sisaBox,
+    totalBooked,
+    maxCapacity: MAX_BOX_CAPACITY,
   };
 }

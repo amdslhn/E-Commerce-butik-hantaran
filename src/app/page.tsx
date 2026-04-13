@@ -1,8 +1,18 @@
 import Image from "next/image";
+import { getCurrentInventory } from "@/lib/inventory";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const inventory = await getCurrentInventory();
+
   const stats = [
-    { value: "120+", label: "desain siap kirim" },
+    {
+      value: `${inventory.sisaBox} box`,
+      label: "tersisa & bisa dipesan",
+    },
+    {
+      value: `${inventory.maxCapacity} box`,
+      label: "kapasitas total",
+    },
     { value: "48 jam", label: "waktu pengerjaan" },
     { value: "100%", label: "finishing manual" },
   ];
@@ -111,7 +121,7 @@ export default function HomePage() {
             </a>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {stats.map((stat) => (
               <div
                 key={stat.label}
@@ -126,6 +136,9 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+          <p className="text-xs text-stone-500">
+            Data stok sinkron dengan booking yang belum dibatalkan atau selesai.
+          </p>
         </div>
 
         <aside className="rounded-3xl border border-stone-300 bg-linear-to-br from-white via-orange-50 to-rose-50 p-7 shadow-[0_30px_80px_-30px_rgba(41,37,36,0.45)]">
@@ -207,14 +220,16 @@ export default function HomePage() {
               key={service.namaDesain}
               className="rounded-2xl border border-stone-200 bg-white/85 p-4 shadow-[0_22px_40px_-30px_rgba(41,37,36,0.55)] transition duration-300 hover:-translate-y-1"
             >
-              <div className="relative h-44 overflow-hidden rounded-xl ring-1 ring-stone-200">
-                <Image
-                  src={service.imageUrl}
-                  alt={service.namaDesain}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  className="object-cover transition duration-500 hover:scale-105"
-                />
+              <div className="h-56 rounded-xl bg-white p-2 ring-1 ring-stone-200 sm:h-64">
+                <div className="relative h-full w-full">
+                  <Image
+                    src={service.imageUrl}
+                    alt={service.namaDesain}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                    className="object-contain"
+                  />
+                </div>
               </div>
               <h3 className="mt-4 text-xl font-bold text-stone-900">
                 {service.namaDesain}

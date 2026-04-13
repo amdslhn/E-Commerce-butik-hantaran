@@ -11,7 +11,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-
 }
 
 // --- TABEL BERDASARKAN ERD ---
@@ -24,11 +23,11 @@ enum BookingStatus {
 }
 
 model Role {
-  id        Int     @id @default(autoincrement())
-  nama_role String  @db.VarChar(20)
-  
+  id        Int    @id @default(autoincrement())
+  nama_role String @db.VarChar(20)
+
   // Relasi
-  users     User[]
+  users User[]
 
   @@map("roles") // Nama tabel di database
 }
@@ -40,13 +39,23 @@ model User {
   email         String   @unique @db.VarChar(100)
   password_hash String   @db.Text
   no_wa         String?  @db.VarChar(20)
+  is_verified   Boolean  @default(false)
   created_at    DateTime @default(now()) @db.Timestamp(6)
 
   // Relasi
-  role          Role      @relation(fields: [role_id], references: [id])
-  bookings      Booking[]
+  role     Role      @relation(fields: [role_id], references: [id])
+  bookings Booking[]
 
   @@map("users")
+}
+
+model VerificationToken {
+  id         Int      @id @default(autoincrement())
+  email      String   @db.VarChar(100)
+  otp        String   @db.VarChar(6)
+  expires_at DateTime @db.Timestamp(6)
+
+  @@map("verification_tokens")
 }
 
 model Service {
@@ -59,29 +68,29 @@ model Service {
   is_active     Boolean @default(true)
 
   // Relasi
-  bookings      Booking[]
+  bookings Booking[]
 
   @@map("services")
 }
 
 model Booking {
-  id              Int      @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   user_id         Int
   service_id      Int
-  event_date      DateTime @db.Date
-  drop_off_date   DateTime @db.Date // H-7
-  pick_up_date    DateTime @db.Date // H-1
-  return_date     DateTime @db.Date // H+2
-  jumlah_box      Int      // Maksimal total akumulasi sistem = 70
+  event_date      DateTime      @db.Date
+  drop_off_date   DateTime      @db.Date // H-7
+  pick_up_date    DateTime      @db.Date // H-1
+  return_date     DateTime      @db.Date // H+2
+  jumlah_box      Int // Maksimal total akumulasi sistem = 70
   total_price     Int
   status_booking  BookingStatus @default(PENDING)
-  custom_metadata Json?    @db.JsonB
-  created_at      DateTime @default(now()) @db.Timestamp(6)
-  updated_at      DateTime @updatedAt      @db.Timestamp(6)
+  custom_metadata Json?         @db.JsonB
+  created_at      DateTime      @default(now()) @db.Timestamp(6)
+  updated_at      DateTime      @updatedAt @db.Timestamp(6)
 
   // Relasi
-  user            User     @relation(fields: [user_id], references: [id])
-  service         Service  @relation(fields: [service_id], references: [id])
+  user    User    @relation(fields: [user_id], references: [id])
+  service Service @relation(fields: [service_id], references: [id])
 
   @@map("bookings")
 }
