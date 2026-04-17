@@ -18,6 +18,8 @@ datasource db {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  READY
+  PICKED_UP
   CANCELLED
   RETURNED
 }

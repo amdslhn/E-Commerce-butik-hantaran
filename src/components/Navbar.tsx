@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import UserMenu from "./UserMenu";
+import { getSession } from "@/lib/session";
 
 export default async function Navbar() {
   // Membaca cookie untuk mengecek apakah user sudah login
-  const cookieStore = await cookies();
-  const userName = cookieStore.get("user_name")?.value;
+  const session = await getSession();
+  const userName = session?.user_name;
   const isLoggedIn = !!userName;
 
   // Mengambil huruf pertama dari nama untuk dijadikan Ikon Profil (Inisial)
-  const initial = userName ? userName.charAt(0).toUpperCase() : "U";
+ const initial = userName ? userName.charAt(0).toUpperCase() : "U";
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-stone-200/50 bg-white/70 backdrop-blur-md">

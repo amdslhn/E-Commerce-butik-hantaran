@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { encrypt } from "@/lib/session";
 
 const LoginSchema = z.object({
   email: z.string().email("Format email tidak valid"),
@@ -21,6 +22,7 @@ export async function loginUser(prevState: unknown, formData: FormData) {
   }
 
   const { email, password } = validatedFields.data;
+  let targetPath = "/"; // Default path untuk customer
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
@@ -29,9 +31,7 @@ export async function loginUser(prevState: unknown, formData: FormData) {
       return { success: false, error: "Email atau password salah." };
     }
 
-    // Pengecekan status verifikasi sebelum mengecek password
     if (!user.is_verified) {
-      // Mengarahkan user kembali ke halaman verifikasi dengan membawa email di URL
       redirect(`/verify?email=${encodeURIComponent(email)}`);
     }
 
@@ -41,23 +41,35 @@ export async function loginUser(prevState: unknown, formData: FormData) {
       return { success: false, error: "Email atau password salah." };
     }
 
+    // --- LOGIKA ROLE-BASED REDIRECT ---
+    // Asumsi: role_id 1 = Customer, role_id 3 = Admin
+    if (user.role_id === 3) {
+      targetPath = "/admin/dashboard";
+    }
+
+    const sessionData = {
+      user_id: user.id,
+      user_name: user.nama,
+      user_role: user.role_id,
+    };
+
+    // 2. Enkripsi datanya
+    const encryptedSession = await encrypt(sessionData);
+
+    // 3. Simpan ke SATU cookie bernama 'session'
     const cookieStore = await cookies();
-    const cookieOptions = {
+    cookieStore.set("session", encryptedSession, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 7 hari
       path: "/",
-    };
-
-    cookieStore.set("user_name", user.nama, cookieOptions);
-    cookieStore.set("user_id", String(user.id), cookieOptions);
-
+    });
   } catch (error: unknown) {
-     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
-        throw error;
-     }
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
+      throw error;
+    }
     return { success: false, error: "Terjadi kesalahan sistem." };
   }
 
-  redirect("/");
+  redirect(targetPath); // Pindah ke halaman yang sesuai
 }

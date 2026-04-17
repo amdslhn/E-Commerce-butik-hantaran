@@ -1,18 +1,17 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/session";
 
 export default async function ProfilePage() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("user_id")?.value;
+  const session = await getSession();
 
-  if (!userId) {
+  if (!session || !session.user_id) {
     redirect("/login");
   }
 
   // Ambil data user dari database
   const user = await prisma.user.findUnique({
-    where: { id: parseInt(userId) },
+    where: { id: session.user_id },
     select: { nama: true, email: true, created_at: true },
   });
 

@@ -5,14 +5,26 @@ import { checkAvailability } from "@/lib/inventory";
 import { calculateBookingDates } from "@/lib/dates";
 import { BookingSchema } from "@/lib/validations/booking.schema";
 import { Prisma, BookingStatus } from "@prisma/client";
+import { getSession } from "@/lib/session";
 
 const rateLimitCache = new Map<number, number>();
 const RATE_LIMIT_WINDOW_MS = 3000;
 
 export async function checkoutBooking(prevState: unknown, formData: FormData) {
+
+  const session = await getSession();
+
+  if (!session || !session.user_id) {
+    return {
+      success: false,
+      error: "Sesi telah habis. Silakan login kembali.",
+    };
+  }
+
+  const serverUserId = session.user_id;
   // 1. Tambahkan fields baru ke Zod parser
   const validatedFields = BookingSchema.safeParse({
-    user_id: formData.get("user_id"),
+    user_id: serverUserId,
     service_id: formData.get("service_id"),
     event_date: formData.get("event_date"),
     jumlah_box: formData.get("jumlah_box"),

@@ -1,18 +1,77 @@
 import Image from "next/image";
+import Link from "next/link";
 import { getCurrentInventory } from "@/lib/inventory";
+import { getSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 
 export default async function HomePage() {
   const inventory = await getCurrentInventory();
+  const session = await getSession();
+  const bookingUrl = session ? "/booking" : "/login";
+
+  // 1. Ambil data layanan dari database
+  const dbServices = await prisma.service.findMany({
+    orderBy: { id: "asc" },
+  });
+
+  // 2. Kamus Gambar
+  const imageMapping: Record<string, string> = {
+    "Rustic Wood Tray": "/Rustic_wood_tray.jpeg",
+    "Classic White Gold Tray": "/Classic_white_gold_tray.jpeg",
+    "Pearl Tray": "/Pearl_tray.jpeg",
+    "Crystal Tray": "/Crystal_tray.jpeg",
+    "Hidden Hantaran": "/Hidden_hantaran.jpeg",
+  };
+
+  // --- 3. LOGIKA PAKET FAVORIT (TRENDING) ---
+  const tujuhHariLalu = new Date();
+  tujuhHariLalu.setDate(tujuhHariLalu.getDate() - 7);
+
+  let topServiceId: number | undefined;
+
+  // Coba cari yang paling banyak dibooking 7 hari terakhir
+  const trendingMingguIni = await prisma.booking.groupBy({
+    by: ["service_id"],
+    where: { created_at: { gte: tujuhHariLalu } },
+    _count: { service_id: true },
+    orderBy: { _count: { service_id: "desc" } },
+    take: 1,
+  });
+
+  if (trendingMingguIni.length > 0) {
+    topServiceId = trendingMingguIni[0].service_id;
+  } else {
+    // Kalau minggu ini sepi, ambil yang terfavorit sepanjang masa
+    const trendingSepanjangMasa = await prisma.booking.groupBy({
+      by: ["service_id"],
+      _count: { service_id: true },
+      orderBy: { _count: { service_id: "desc" } },
+      take: 1,
+    });
+    if (trendingSepanjangMasa.length > 0) {
+      topServiceId = trendingSepanjangMasa[0].service_id;
+    }
+  }
+
+  // Ambil detail layanan terfavorit (atau fallback ke layanan pertama jika DB masih kosong)
+  let paketFavorit = null;
+  if (topServiceId) {
+    paketFavorit = await prisma.service.findUnique({
+      where: { id: topServiceId },
+    });
+  }
+  if (!paketFavorit && dbServices.length > 0) {
+    paketFavorit = dbServices[0];
+  }
+
+  const favoritImageUrl = paketFavorit
+    ? imageMapping[paketFavorit.nama_desain] || "/placeholder_image.jpeg"
+    : "/placeholder_image.jpeg";
+  // -----------------------------------------
 
   const stats = [
-    {
-      value: `${inventory.sisaBox} box`,
-      label: "tersisa & bisa dipesan",
-    },
-    {
-      value: `${inventory.maxCapacity} box`,
-      label: "kapasitas total",
-    },
+    { value: `${inventory.sisaBox} box`, label: "tersisa & bisa dipesan" },
+    { value: `${inventory.maxCapacity} box`, label: "kapasitas total" },
     { value: "48 jam", label: "waktu pengerjaan" },
     { value: "100%", label: "finishing manual" },
   ];
@@ -33,45 +92,6 @@ export default async function HomePage() {
     {
       title: "Kontrol kualitas",
       body: "Cek ulang isi, packaging, dan keamanan sebelum berangkat ke kurir.",
-    },
-  ];
-
-  const services = [
-    {
-      namaDesain: "Rustic Wood Tray",
-      deskripsi: "Desain kayu natural yang hangat, bertema alam dan estetik",
-      hargaReguler: 50000,
-      hargaWo: 40000,
-      imageUrl: "/Rustic_wood_tray.jpeg",
-    },
-    {
-      namaDesain: "Classic White Gold Tray",
-      deskripsi: "Perpaduan warna putih dan emas yang elegan dan klasik",
-      hargaReguler: 80000,
-      hargaWo: 50000,
-      imageUrl: "/Classic_white_gold_tray.jpeg",
-    },
-    {
-      namaDesain: "Pearl Tray",
-      deskripsi: "Berbalut hiasan mutiara mewah untuk kesan premium",
-      hargaReguler: 60000,
-      hargaWo: 45000,
-      imageUrl: "/Pearl_tray.jpeg",
-    },
-    {
-      namaDesain: "Crystal Tray",
-      deskripsi: "Desain akrilik bening mengkilap yang memantulkan cahaya",
-      hargaReguler: 75000,
-      hargaWo: 55000,
-      imageUrl: "/Crystal_tray.jpeg",
-    },
-    {
-      namaDesain: "Hidden Hantaran",
-      deskripsi:
-        "Desain tertutup (acrylic box) eksklusif untuk menjaga kejutan",
-      hargaReguler: 85000,
-      hargaWo: 60000,
-      imageUrl: "/Hidden_hantaran.jpeg",
     },
   ];
 
@@ -107,18 +127,18 @@ export default async function HomePage() {
           </p>
 
           <div className="flex flex-wrap gap-3">
-            <a
+            <Link
               className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700"
               href="#katalog"
             >
               Lihat katalog
-            </a>
-            <a
+            </Link>
+            <Link
               className="rounded-full border border-stone-400 bg-white/80 px-6 py-3 text-sm font-semibold text-stone-800 transition duration-300 hover:-translate-y-0.5 hover:border-stone-700"
-              href="#booking"
+              href={bookingUrl}
             >
               Custom order
-            </a>
+            </Link>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -141,32 +161,42 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <aside className="rounded-3xl border border-stone-300 bg-linear-to-br from-white via-orange-50 to-rose-50 p-7 shadow-[0_30px_80px_-30px_rgba(41,37,36,0.45)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-            Paket favorit minggu ini
-          </p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-stone-900">
-            Paket Sakinah
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-stone-600">
-            Warna creamy, aksen gold, dan bunga kering pilihan.
-          </p>
-          <ul className="mt-5 space-y-3 text-sm text-stone-700">
-            <li className="rounded-xl bg-white/80 px-4 py-3">
-              Hantaran skincare lengkap
-            </li>
-            <li className="rounded-xl bg-white/80 px-4 py-3">
-              Perlengkapan ibadah minimalis
-            </li>
-            <li className="rounded-xl bg-white/80 px-4 py-3">
-              Box akrilik premium
-            </li>
-          </ul>
-          <div className="mt-6 flex items-center justify-between gap-4">
-            <span className="text-lg font-bold text-stone-900">Mulai 480k</span>
-            <span className="rounded-full border border-orange-300 bg-orange-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-700">
-              free kartu ucapan
-            </span>
+        {/* --- KOTAK PAKET FAVORIT YANG SUDAH DINAMIS --- */}
+        <aside className="relative flex flex-col justify-between overflow-hidden rounded-3xl border border-stone-300 bg-white shadow-[0_30px_80px_-30px_rgba(41,37,36,0.45)]">
+          {/* Gambar Header */}
+          <div className="relative h-48 w-full sm:h-56">
+            <Image
+              src={favoritImageUrl}
+              alt={paketFavorit?.nama_desain || "Paket Favorit"}
+              fill
+              className="object-cover"
+            />
+            {/* Gradient agar teks di atas gambar tetap terbaca */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            <p className="absolute bottom-4 left-7 text-xs font-semibold uppercase tracking-[0.24em] text-white/90 drop-shadow-md">
+              Terlaris Minggu Ini
+            </p>
+          </div>
+
+          {/* Konten Text */}
+          <div className="p-7">
+            <h2 className="text-3xl font-extrabold tracking-tight text-stone-900">
+              {paketFavorit?.nama_desain || "Paket Eksklusif"}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600 line-clamp-3">
+              {paketFavorit?.deskripsi ||
+                "Pilihan hantaran terbaik untuk momen spesial Anda dengan kualitas premium."}
+            </p>
+
+            <div className="mt-6 flex items-center justify-between gap-4 border-t border-stone-100 pt-5">
+              <span className="text-lg font-bold text-stone-900">
+                Mulai{" "}
+                {paketFavorit ? formatRupiah(paketFavorit.harga_wo) : "Rp -"}
+              </span>
+              <span className="rounded-full border border-orange-300 bg-orange-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-700">
+                Best Seller
+              </span>
+            </div>
           </div>
         </aside>
       </section>
@@ -215,38 +245,43 @@ export default async function HomePage() {
           </p>
         </div>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {services.map((service) => (
-            <article
-              key={service.namaDesain}
-              className="rounded-2xl border border-stone-200 bg-white/85 p-4 shadow-[0_22px_40px_-30px_rgba(41,37,36,0.55)] transition duration-300 hover:-translate-y-1"
-            >
-              <div className="h-56 rounded-xl bg-white p-2 ring-1 ring-stone-200 sm:h-64">
-                <div className="relative h-full w-full">
-                  <Image
-                    src={service.imageUrl}
-                    alt={service.namaDesain}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                    className="object-contain"
-                  />
+          {dbServices.map((service) => {
+            const imageUrl =
+              imageMapping[service.nama_desain] || "/placeholder_image.jpeg";
+
+            return (
+              <article
+                key={service.id}
+                className="rounded-2xl border border-stone-200 bg-white/85 p-4 shadow-[0_22px_40px_-30px_rgba(41,37,36,0.55)] transition duration-300 hover:-translate-y-1"
+              >
+                <div className="h-56 rounded-xl bg-white p-2 ring-1 ring-stone-200 sm:h-64">
+                  <div className="relative h-full w-full">
+                    <Image
+                      src={imageUrl}
+                      alt={service.nama_desain}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                      className="object-contain"
+                    />
+                  </div>
                 </div>
-              </div>
-              <h3 className="mt-4 text-xl font-bold text-stone-900">
-                {service.namaDesain}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-stone-600">
-                {service.deskripsi}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-stone-600">
-                  Reguler {formatRupiah(service.hargaReguler)}
-                </span>
-                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-700">
-                  WO {formatRupiah(service.hargaWo)}
-                </span>
-              </div>
-            </article>
-          ))}
+                <h3 className="mt-4 text-xl font-bold text-stone-900">
+                  {service.nama_desain}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-stone-600">
+                  {service.deskripsi}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-stone-600">
+                    Reguler {formatRupiah(service.harga_reguler)}
+                  </span>
+                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-700">
+                    WO {formatRupiah(service.harga_wo)}
+                  </span>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -281,18 +316,18 @@ export default async function HomePage() {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <a
+            <Link
               className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700"
-              href="/booking"
+              href={bookingUrl}
             >
               Mulai booking
-            </a>
-            <a
+            </Link>
+            <Link
               className="rounded-full border border-stone-400 bg-white/80 px-6 py-3 text-sm font-semibold text-stone-800 transition duration-300 hover:-translate-y-0.5 hover:border-stone-700"
-              href="/katalog"
+              href="#katalog"
             >
               Lihat detail paket
-            </a>
+            </Link>
           </div>
         </div>
       </section>
