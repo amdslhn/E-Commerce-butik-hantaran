@@ -22,6 +22,13 @@ export async function checkoutBooking(prevState: unknown, formData: FormData) {
 
   const serverUserId = session.user_id;
 
+  if (formData.get("tnc_accepted") !== "true") {
+    return {
+      success: false,
+      error: "Anda wajib menyetujui syarat dan ketentuan sebelum checkout.",
+    };
+  }
+
   // 1. Validasi Zod Parser (Lengkap dengan data pengantin)
   const validatedFields = BookingSchema.safeParse({
     user_id: serverUserId,
@@ -31,6 +38,7 @@ export async function checkoutBooking(prevState: unknown, formData: FormData) {
     nama_pengantin_pria: formData.get("nama_pengantin_pria"),
     nama_pengantin_wanita: formData.get("nama_pengantin_wanita"),
     catatan_tambahan: formData.get("catatan_tambahan"),
+    nama_klien_wo: formData.get("nama_klien_wo"),
   });
 
   if (!validatedFields.success) {
@@ -46,6 +54,7 @@ export async function checkoutBooking(prevState: unknown, formData: FormData) {
     nama_pengantin_pria,
     nama_pengantin_wanita,
     catatan_tambahan,
+    nama_klien_wo,
   } = validatedFields.data;
 
   // 3. Rate Limiting (MVP)
@@ -64,7 +73,15 @@ export async function checkoutBooking(prevState: unknown, formData: FormData) {
       async (tx) => {
         const user = await tx.user.findUnique({
           where: { id: user_id },
-          select: { id: true },
+          select: {
+            id: true,
+            role_id: true,
+            role: {
+              select: {
+                nama_role: true,
+              },
+            },
+          },
         });
 
         if (!user) {
@@ -96,6 +113,26 @@ export async function checkoutBooking(prevState: unknown, formData: FormData) {
         const { eventDate, dropOffDate, pickUpDate, returnDate } =
           calculateBookingDates(event_date);
 
+        const normalizedRoleName = user.role.nama_role.toLowerCase();
+        const isWOUser =
+          user.role_id === 2 ||
+          normalizedRoleName.includes("wo") ||
+          normalizedRoleName.includes("wedding");
+
+        const metadataPayload: Record<string, Prisma.InputJsonValue> = {
+          pengantin_pria: nama_pengantin_pria,
+          pengantin_wanita: nama_pengantin_wanita,
+          catatan: catatan_tambahan || "",
+        };
+
+        if (isWOUser) {
+          metadataPayload.is_wo_booking = true;
+
+          if (nama_klien_wo && nama_klien_wo.trim().length > 0) {
+            metadataPayload.nama_klien_wo = nama_klien_wo.trim();
+          }
+        }
+
         // 4. Masukkan ke database
         const booking = await tx.booking.create({
           data: {
@@ -108,12 +145,8 @@ export async function checkoutBooking(prevState: unknown, formData: FormData) {
             jumlah_box,
             total_price: calculatedTotalPrice,
             status_booking: BookingStatus.PENDING,
-            // --- SIMPAN KE JSONB (Pengantin & Catatan aman di sini) ---
-            custom_metadata: {
-              pengantin_pria: nama_pengantin_pria,
-              pengantin_wanita: nama_pengantin_wanita,
-              catatan: catatan_tambahan || "",
-            },
+            // --- SIMPAN KE JSONB (Pengantin, catatan, dan metadata WO aman di sini) ---
+            custom_metadata: metadataPayload as Prisma.InputJsonObject,
           },
         });
 
