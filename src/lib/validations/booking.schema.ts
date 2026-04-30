@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const nullableOptionalString = z.preprocess(
+  (value) => (value === null || value === undefined ? undefined : value),
+  z.string().trim().optional(),
+);
+
 export const BookingSchema = z.object({
   user_id: z.coerce
     .number()
@@ -18,12 +23,11 @@ export const BookingSchema = z.object({
   nama_pengantin_pria: z
     .string()
     .min(2, { message: "Nama pengantin pria wajib diisi (minimal 2 huruf)." }),
-  nama_pengantin_wanita: z
-    .string()
-    .min(2, {
-      message: "Nama pengantin wanita wajib diisi (minimal 2 huruf).",
-    }),
-  catatan_tambahan: z.string().optional(), // Boleh kosong
+  nama_pengantin_wanita: z.string().min(2, {
+    message: "Nama pengantin wanita wajib diisi (minimal 2 huruf).",
+  }),
+  catatan_tambahan: nullableOptionalString, // Boleh kosong
+  nama_klien_wo: nullableOptionalString,
 });
 
 export type BookingInput = z.infer<typeof BookingSchema>;

@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 export default async function HomePage() {
   const inventory = await getCurrentInventory();
   const session = await getSession();
+
+  // TIKET: Diferensiasi Role
+  const isAdmin = session?.user_role === 3;
   const bookingUrl = session ? "/booking" : "/login";
 
   // 1. Ambil data layanan dari database
@@ -29,7 +32,6 @@ export default async function HomePage() {
 
   let topServiceId: number | undefined;
 
-  // Coba cari yang paling banyak dibooking 7 hari terakhir
   const trendingMingguIni = await prisma.booking.groupBy({
     by: ["service_id"],
     where: { created_at: { gte: tujuhHariLalu } },
@@ -41,7 +43,6 @@ export default async function HomePage() {
   if (trendingMingguIni.length > 0) {
     topServiceId = trendingMingguIni[0].service_id;
   } else {
-    // Kalau minggu ini sepi, ambil yang terfavorit sepanjang masa
     const trendingSepanjangMasa = await prisma.booking.groupBy({
       by: ["service_id"],
       _count: { service_id: true },
@@ -53,7 +54,6 @@ export default async function HomePage() {
     }
   }
 
-  // Ambil detail layanan terfavorit (atau fallback ke layanan pertama jika DB masih kosong)
   let paketFavorit = null;
   if (topServiceId) {
     paketFavorit = await prisma.service.findUnique({
@@ -65,8 +65,8 @@ export default async function HomePage() {
   }
 
   const favoritImageUrl = paketFavorit
-    ? imageMapping[paketFavorit.nama_desain] || "/placeholder_image.jpeg"
-    : "/placeholder_image.jpeg";
+    ? imageMapping[paketFavorit.nama_desain] || "/Rustic_wood_tray.jpeg"
+    : "/Rustic_wood_tray.jpeg";
   // -----------------------------------------
 
   const stats = [
@@ -116,29 +116,55 @@ export default async function HomePage() {
       <section className="mx-auto grid max-w-7xl gap-10 px-6 pb-20 pt-14 md:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:pb-28 lg:pt-20">
         <div className="space-y-7">
           <p className="inline-flex w-fit rounded-full border border-stone-300/70 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-stone-700 backdrop-blur">
-            Butik Hantaran - kurasi lokal
+            {isAdmin
+              ? "Mode Administrator Aktif"
+              : "Butik Hantaran - kurasi lokal"}
           </p>
           <h1 className="max-w-2xl text-balance text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            Hantaran modern yang rapi, elegan, dan siap akad
+            {isAdmin
+              ? "Kelola Butik & Pantau Pesanan Hantaran"
+              : "Hantaran modern yang rapi, elegan, dan siap akad"}
           </h1>
           <p className="max-w-xl text-pretty text-base leading-relaxed text-stone-600 sm:text-lg">
-            Pilihan paket premium dengan palet warna lembut, detail tangan, dan
-            story card yang terasa personal.
+            {isAdmin
+              ? "Gunakan dashboard untuk memantau inventaris stok box dan memvalidasi pesanan pelanggan yang masuk."
+              : "Pilihan paket premium dengan palet warna lembut, detail tangan, dan story card yang terasa personal."}
           </p>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700"
-              href="#katalog"
-            >
-              Lihat katalog
-            </Link>
-            <Link
-              className="rounded-full border border-stone-400 bg-white/80 px-6 py-3 text-sm font-semibold text-stone-800 transition duration-300 hover:-translate-y-0.5 hover:border-stone-700"
-              href={bookingUrl}
-            >
-              Custom order
-            </Link>
+            {isAdmin ? (
+              <Link
+                className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700 shadow-lg shadow-stone-900/20"
+                href="/admin/dashboard"
+              >
+                Buka Dashboard Admin
+              </Link>
+            ) : (
+              <Link
+                className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700"
+                href="#katalog"
+              >
+                Lihat katalog
+              </Link>
+            )}
+
+            {!isAdmin && (
+              <Link
+                className="rounded-full border border-stone-400 bg-white/80 px-6 py-3 text-sm font-semibold text-stone-800 transition duration-300 hover:-translate-y-0.5 hover:border-stone-700"
+                href={bookingUrl}
+              >
+                Custom order
+              </Link>
+            )}
+
+            {isAdmin && (
+              <Link
+                className="rounded-full border border-stone-400 bg-white/80 px-6 py-3 text-sm font-semibold text-stone-800 transition duration-300 hover:-translate-y-0.5 hover:border-stone-700"
+                href="#katalog"
+              >
+                Cek Stok Katalog
+              </Link>
+            )}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -159,11 +185,25 @@ export default async function HomePage() {
           <p className="text-xs text-stone-500">
             Data stok sinkron dengan booking yang belum dibatalkan atau selesai.
           </p>
+
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-4 shadow-sm backdrop-blur">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">✨</span>
+              <p className="text-sm font-medium leading-relaxed text-rose-800">
+                <strong className="font-black">Kabar Gembira!</strong> Khusus
+                layanan desain{" "}
+                <span className="font-bold underline decoration-rose-300 underline-offset-2">
+                  Hidden Hantaran
+                </span>
+                , stok kami <strong className="font-black">Unlimited</strong>{" "}
+                (Tidak Terbatas). Anda bisa pesan berapapun tanpa khawatir
+                kehabisan!
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* --- KOTAK PAKET FAVORIT YANG SUDAH DINAMIS --- */}
         <aside className="relative flex flex-col justify-between overflow-hidden rounded-3xl border border-stone-300 bg-white shadow-[0_30px_80px_-30px_rgba(41,37,36,0.45)]">
-          {/* Gambar Header */}
           <div className="relative h-48 w-full sm:h-56">
             <Image
               src={favoritImageUrl}
@@ -171,14 +211,12 @@ export default async function HomePage() {
               fill
               className="object-cover"
             />
-            {/* Gradient agar teks di atas gambar tetap terbaca */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent"></div>
             <p className="absolute bottom-4 left-7 text-xs font-semibold uppercase tracking-[0.24em] text-white/90 drop-shadow-md">
               Terlaris Minggu Ini
             </p>
           </div>
 
-          {/* Konten Text */}
           <div className="p-7">
             <h2 className="text-3xl font-extrabold tracking-tight text-stone-900">
               {paketFavorit?.nama_desain || "Paket Eksklusif"}
@@ -201,6 +239,7 @@ export default async function HomePage() {
         </aside>
       </section>
 
+      {/* --- FITUR SECTION --- */}
       <section className="mx-auto max-w-7xl px-6 py-14 md:px-10" id="fitur">
         <div className="max-w-2xl space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
@@ -231,6 +270,7 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* --- KATALOG SECTION --- */}
       <section className="mx-auto max-w-7xl px-6 py-14 md:px-10" id="katalog">
         <div className="max-w-2xl space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
@@ -247,7 +287,8 @@ export default async function HomePage() {
         <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {dbServices.map((service) => {
             const imageUrl =
-              imageMapping[service.nama_desain] || "/placeholder_image.jpeg";
+              imageMapping[service.nama_desain] || "/Rustic_wood_tray.jpeg";
+           const inv = inventory.inventoryMap[service.id];
 
             return (
               <article
@@ -273,11 +314,17 @@ export default async function HomePage() {
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-stone-600">
-                    Reguler {formatRupiah(service.harga_reguler)}
+                    Harga {formatRupiah(service.harga_reguler)}
                   </span>
-                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-700">
-                    WO {formatRupiah(service.harga_wo)}
-                  </span>
+                  {inv?.is_unlimited ? (
+                    <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-rose-700">
+                      📦 Stok: Unlimited
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-stone-700">
+                      📦 Sisa: {inv?.sisa} / {inv?.max} Box
+                    </span>
+                  )}
                 </div>
               </article>
             );
@@ -285,6 +332,7 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* --- FOOTER BOOKING/ADMIN SECTION --- */}
       <section
         className="mx-auto max-w-7xl px-6 pb-20 pt-14 md:px-10"
         id="booking"
@@ -292,36 +340,53 @@ export default async function HomePage() {
         <div className="rounded-3xl border border-stone-300 bg-linear-to-br from-orange-100/70 via-rose-50 to-white p-7 shadow-[0_30px_80px_-40px_rgba(41,37,36,0.55)] sm:p-10">
           <div className="max-w-2xl space-y-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-              Booking cepat
+              {isAdmin ? "Kendali Cepat" : "Booking cepat"}
             </p>
             <h2 className="text-3xl font-black tracking-tight text-stone-900 sm:text-4xl">
-              Bikin hantaran sesuai cerita kalian
+              {isAdmin
+                ? "Manajemen Alur Butik Hantaran"
+                : "Bikin hantaran sesuai cerita kalian"}
             </h2>
             <p className="text-base leading-relaxed text-stone-600">
-              Konsultasi warna, isi, dan budget langsung. Kami bantu dari konsep
-              sampai packing.
+              {isAdmin
+                ? "Pastikan semua pesanan terverifikasi dan stok fisik box sesuai dengan data sistem."
+                : "Konsultasi warna, isi, dan budget langsung. Kami bantu dari konsep sampai packing."}
             </p>
           </div>
 
-          <div className="mt-7 grid gap-3 md:grid-cols-3">
-            {steps.map((step, index) => (
-              <div
-                key={step}
-                className="rounded-2xl border border-stone-200 bg-white/80 p-4"
-              >
-                <p className="text-xl font-black text-stone-900">{index + 1}</p>
-                <p className="mt-1 text-sm text-stone-600">{step}</p>
-              </div>
-            ))}
-          </div>
+          {!isAdmin && (
+            <div className="mt-7 grid gap-3 md:grid-cols-3">
+              {steps.map((step, index) => (
+                <div
+                  key={step}
+                  className="rounded-2xl border border-stone-200 bg-white/80 p-4"
+                >
+                  <p className="text-xl font-black text-stone-900">
+                    {index + 1}
+                  </p>
+                  <p className="mt-1 text-sm text-stone-600">{step}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700"
-              href={bookingUrl}
-            >
-              Mulai booking
-            </Link>
+            {isAdmin ? (
+              <Link
+                className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700"
+                href="/admin/dashboard"
+              >
+                Buka Dashboard Admin
+              </Link>
+            ) : (
+              <Link
+                className="rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-stone-700"
+                href={bookingUrl}
+              >
+                Mulai booking
+              </Link>
+            )}
+
             <Link
               className="rounded-full border border-stone-400 bg-white/80 px-6 py-3 text-sm font-semibold text-stone-800 transition duration-300 hover:-translate-y-0.5 hover:border-stone-700"
               href="#katalog"

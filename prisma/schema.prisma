@@ -69,6 +69,10 @@ model Service {
   harga_wo      Int
   image_url     String? @db.Text
   is_active     Boolean @default(true)
+  
+  // TIKET BH-DB-02: Tambahan kolom stok
+  stok_box      Int     @default(0)
+  is_unlimited  Boolean @default(false)
 
   // Relasi
   bookings Booking[]
@@ -81,7 +85,7 @@ model Booking {
   user_id         Int
   service_id      Int
   event_date      DateTime      @db.Date
-  drop_off_date   DateTime      @db.Date // H-7
+  drop_off_date   DateTime      @db.Date // H-3
   pick_up_date    DateTime      @db.Date // H-1
   return_date     DateTime      @db.Date // H+2
   jumlah_box      Int // Maksimal total akumulasi sistem = 70

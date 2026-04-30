@@ -6,10 +6,11 @@ export default async function Navbar() {
   // Membaca cookie untuk mengecek apakah user sudah login
   const session = await getSession();
   const userName = session?.user_name;
+  const userRole = session?.user_role;
   const isLoggedIn = !!userName;
 
   // Mengambil huruf pertama dari nama untuk dijadikan Ikon Profil (Inisial)
- const initial = userName ? userName.charAt(0).toUpperCase() : "U";
+  const initial = userName ? userName.charAt(0).toUpperCase() : "U";
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-stone-200/50 bg-white/70 backdrop-blur-md">
@@ -30,11 +31,23 @@ export default async function Navbar() {
           >
             Katalog
           </Link>
+          {isLoggedIn && userRole !== 3 && (
+            <Link
+              href="/pesanan"
+              className="hidden text-sm font-semibold text-[#7a6f69] transition hover:text-[#c2652a] sm:block"
+            >
+              Tracking
+            </Link>
+          )}
           <div className="h-5 w-px bg-[#d8d0c8] hidden sm:block"></div>{" "}
           {/* Divider */}
           {isLoggedIn ? (
             /* --- TAMPILAN JIKA SUDAH LOGIN --- */
-            <UserMenu userName={userName} initial={initial} />
+            <UserMenu
+              userName={userName}
+              initial={initial}
+              userRole={userRole}
+            />
           ) : (
             /* --- TAMPILAN JIKA BELUM LOGIN --- */
             <div className="flex items-center gap-3">

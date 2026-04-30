@@ -7,12 +7,15 @@ import { logoutUser } from "@/actions/logout";
 export default function UserMenu({
   userName,
   initial,
+  userRole,
 }: {
   userName: string;
   initial: string;
+  userRole?: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isCustomerPortal = userRole !== 3;
 
   // Menutup dropdown jika user klik di luar area menu
   useEffect(() => {
@@ -82,6 +85,54 @@ export default function UserMenu({
             </svg>
             Profil
           </Link>
+
+          {isCustomerPortal && (
+            <>
+              <Link
+                href="/booking"
+                onClick={() => setIsOpen(false)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#3a302a] transition hover:bg-[#faf5ee] hover:text-[#c2652a]"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="h-4 w-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8.25 6.75h10.5m-10.5 5.25h10.5m-10.5 5.25h10.5M3.75 6.75h.008v.008H3.75V6.75Zm0 5.25h.008v.008H3.75V12Zm0 5.25h.008v.008H3.75v-.008Z"
+                  />
+                </svg>
+                Booking Baru
+              </Link>
+
+              <Link
+                href="/pesanan"
+                onClick={() => setIsOpen(false)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#3a302a] transition hover:bg-[#faf5ee] hover:text-[#c2652a]"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="h-4 w-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 3v1.5M3 19.5V21m0-1.5h18M3 4.5h18M5.25 7.5h13.5a.75.75 0 0 1 .75.75v8.25a.75.75 0 0 1-.75.75H5.25a.75.75 0 0 1-.75-.75V8.25a.75.75 0 0 1 .75-.75Zm4.5 3.75h4.5"
+                  />
+                </svg>
+                Tracking Pesanan
+              </Link>
+            </>
+          )}
 
           <div className="my-1 h-px w-full bg-[#d8d0c8]/50"></div>
 
