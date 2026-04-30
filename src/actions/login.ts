@@ -35,6 +35,14 @@ export async function loginUser(prevState: unknown, formData: FormData) {
       redirect(`/verify?email=${encodeURIComponent(email)}`);
     }
 
+    // User yang terdaftar via Google tidak punya password
+    if (!user.password_hash) {
+      return {
+        success: false,
+        error: "Akun ini terdaftar via Google. Gunakan tombol 'Masuk dengan Google'.",
+      };
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
